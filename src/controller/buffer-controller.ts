@@ -59,13 +59,13 @@ class BufferController extends EventHandler {
   private _bufferCodecEventsTotal: number = 0;
 
   // A reference to the attached media element
-  public media: HTMLMediaElement | null = null;
+  public media: HTMLMediaElement | null = null;//tiger 这个语法？
 
   // A reference to the active media source
   public mediaSource: MediaSource | null = null;
 
   // List of pending segments to be appended to source buffer
-  public segments: Segment[] = [];
+  public segments: Segment[] = [];//tiger 指什么？
 
   public parent?: string;
 
@@ -149,23 +149,23 @@ class BufferController extends EventHandler {
     this.bufferCodecEventsExpected = this._bufferCodecEventsTotal = data.altAudio ? 2 : 1;
     logger.log(`${this.bufferCodecEventsExpected} bufferCodec event(s) expected`);
   }
-
+  //html里面开始绑定html上的video 标签如<video id="video"></video>
   onMediaAttaching (data: { media: HTMLMediaElement }) {
     let media = this.media = data.media;
-    if (media && MediaSource) {
-      // setup the media source
+    if (media && MediaSource) {//是媒体标签
+      // setup the media source//tiger MediaSource 这里开始，如果看API，每个MediaSource有track，sourceBuffers，sourceBuffers关闭用endofstream，
       let ms = this.mediaSource = new MediaSource();
       // Media Source listeners
-      ms.addEventListener('sourceopen', this._onMediaSourceOpen);
+      ms.addEventListener('sourceopen', this._onMediaSourceOpen);//事件绑定Event handlers到私有成员函数_onMediaSourceOpen中
       ms.addEventListener('sourceended', this._onMediaSourceEnded);
       ms.addEventListener('sourceclose', this._onMediaSourceClose);
       // link video and media Source
-      media.src = window.URL.createObjectURL(ms);
+      media.src = window.URL.createObjectURL(ms);//tiger 不理解
       // cache the locally generated object url
-      this._objectUrl = media.src;
+      this._objectUrl = media.src;//
     }
   }
-
+  //脱离标签
   onMediaDetaching () {
     logger.log('media source detaching');
     let ms = this.mediaSource;
@@ -176,12 +176,12 @@ class BufferController extends EventHandler {
           // we don't really care about checking sourcebuffer state here,
           // as we are anyway detaching the MediaSource
           // let's just avoid this exception to propagate
-          ms.endOfStream();
+          ms.endOfStream();//关闭流
         } catch (err) {
           logger.warn(`onMediaDetaching:${err.message} while calling endOfStream`);
         }
       }
-      ms.removeEventListener('sourceopen', this._onMediaSourceOpen);
+      ms.removeEventListener('sourceopen', this._onMediaSourceOpen);//移除事件处理
       ms.removeEventListener('sourceended', this._onMediaSourceEnded);
       ms.removeEventListener('sourceclose', this._onMediaSourceClose);
 
@@ -189,7 +189,7 @@ class BufferController extends EventHandler {
       // suggested in https://github.com/w3c/media-source/issues/53.
       if (this.media) {
         if (this._objectUrl) {
-          window.URL.revokeObjectURL(this._objectUrl);
+          window.URL.revokeObjectURL(this._objectUrl);//移除
         }
 
         // clean up video tag src only if it's our own url. some external libraries might
@@ -216,9 +216,9 @@ class BufferController extends EventHandler {
 
     this.hls.trigger(Events.MEDIA_DETACHED);
   }
-
+  //检查未决track
   checkPendingTracks () {
-    let { bufferCodecEventsExpected, pendingTracks } = this;
+    let { bufferCodecEventsExpected, pendingTracks } = this;//tiger? 只取这2个成员的意思吧
 
     // Check if we've received all of the expected bufferCodec events. When none remain, create all the sourceBuffers at once.
     // This is important because the MSE spec allows implementations to throw QuotaExceededErrors if creating new sourceBuffers after
@@ -227,20 +227,20 @@ class BufferController extends EventHandler {
     const pendingTracksCount = Object.keys(pendingTracks).length;
     if ((pendingTracksCount && !bufferCodecEventsExpected) || pendingTracksCount === 2) {
       // ok, let's create them now !
-      this.createSourceBuffers(pendingTracks);
+      this.createSourceBuffers(pendingTracks);//tiger 
       this.pendingTracks = {};
       // append any pending segments now !
-      this.doAppending();
+      this.doAppending();//tiger 
     }
   }
 
   private _onMediaSourceOpen = () => {
     logger.log('media source opened');
-    this.hls.trigger(Events.MEDIA_ATTACHED, { media: this.media });
+    this.hls.trigger(Events.MEDIA_ATTACHED, { media: this.media });//tiger 触发事件
     let mediaSource = this.mediaSource;
     if (mediaSource) {
       // once received, don't listen anymore to sourceopen event
-      mediaSource.removeEventListener('sourceopen', this._onMediaSourceOpen);
+      mediaSource.removeEventListener('sourceopen', this._onMediaSourceOpen);//移除老的
     }
     this.checkPendingTracks();
   }
@@ -263,33 +263,33 @@ class BufferController extends EventHandler {
       delete this.audioTimestampOffset;
     }
 
-    if (this._needsFlush) {
+    if (this._needsFlush) {//需要flush吗
       this.doFlush();
     }
 
-    if (this._needsEos) {
+    if (this._needsEos) {//是否结束了？
       this.checkEos();
     }
 
     this.appending = false;
     let parent = this.parent;
     // count nb of pending segments waiting for appending on this sourcebuffer
-    let pending = this.segments.reduce((counter, segment) => (segment.parent === parent) ? counter + 1 : counter, 0);
+    let pending = this.segments.reduce((counter, segment) => (segment.parent === parent) ? counter + 1 : counter, 0);//tiger ?
 
     // this.sourceBuffer is better to use than media.buffered as it is closer to the PTS data from the fragments
     const timeRanges: Partial<Record<SourceBufferName, TimeRanges>> = {};
     const sbSet = this.sourceBuffer;
     for (let streamType in sbSet) {
-      const sb = sbSet[streamType as SourceBufferName];
+      const sb = sbSet[streamType as SourceBufferName];//是audio或video吗？
       if (!sb) {
         throw Error(`handling source buffer update end error: source buffer for ${streamType} uninitilized and unable to update buffered TimeRanges.`);
       }
-      timeRanges[streamType as SourceBufferName] = sb.buffered;
+      timeRanges[streamType as SourceBufferName] = sb.buffered;//增加？
     }
 
-    this.hls.trigger(Events.BUFFER_APPENDED, { parent, pending, timeRanges });
+    this.hls.trigger(Events.BUFFER_APPENDED, { parent, pending, timeRanges });//触发
     // don't append in flushing mode
-    if (!this._needsFlush) {
+    if (!this._needsFlush) {//如果不需要flush，那就需要添数据
       this.doAppending();
     }
 
@@ -556,26 +556,26 @@ class BufferController extends EventHandler {
     while (this.flushRange.length) {
       let range = this.flushRange[0];
       // flushBuffer will abort any buffer append in progress and flush Audio/Video Buffer
-      if (this.flushBuffer(range.start, range.end, range.type)) {
+      if (this.flushBuffer(range.start, range.end, range.type)) {//如果这个buffer段已经在source buffer中消费完了,
         // range flushed, remove from flush array
         this.flushRange.shift();
         this.flushBufferCounter = 0;
       } else {
-        this._needsFlush = true;
+        this._needsFlush = true;//不能flush，一般都是没有数据了。
         // avoid looping, wait for SB update end to retrigger a flush
         return;
       }
     }
-    if (this.flushRange.length === 0) {
+    if (this.flushRange.length === 0) {//已经没有数据可以flush了，所以不需要flush了
       // everything flushed
-      this._needsFlush = false;
+      this._needsFlush = false;//tiger 
 
       // let's recompute this.appended, which is used to avoid flush looping
       let appended = 0;
       let sourceBuffer = this.sourceBuffer;
       try {
-        for (let type in sourceBuffer) {
-          const sb = sourceBuffer[type];
+        for (let type in sourceBuffer) {//找一个source buffer
+          const sb = sourceBuffer[type];//TIGER sb 好像没有用到？或者下次循环肯定是sb，但不是在这里处理，这里只是标记
           if (sb) {
             appended += sb.buffered.length;
           }
@@ -586,7 +586,7 @@ class BufferController extends EventHandler {
         logger.error('error while accessing sourceBuffer.buffered');
       }
       this.appended = appended;
-      this.hls.trigger(Events.BUFFER_FLUSHED);
+      this.hls.trigger(Events.BUFFER_FLUSHED);//触发事件
     }
   }
 
@@ -614,7 +614,7 @@ class BufferController extends EventHandler {
     }
 
     try {
-      const sb = sourceBuffer[segment.type];
+      const sb = sourceBuffer[segment.type];//tiger segment.type 如何理解，是音频或视频？
       if (!sb) {
         // in case we don't have any source buffer matching with this segment type,
         // it means that Mediasource fails to create sourcebuffer
@@ -623,9 +623,9 @@ class BufferController extends EventHandler {
         return;
       }
 
-      if (sb.updating) {
+      if (sb.updating) {//如果source buffer还在update中，暂时不处理
         // if we are still updating the source buffer from the last segment, place this back at the front of the queue
-        segments.unshift(segment);
+        segments.unshift(segment);//放回去
         return;
       }
 
@@ -633,10 +633,10 @@ class BufferController extends EventHandler {
       sb.ended = false;
       // logger.log(`appending ${segment.content} ${type} SB, size:${segment.data.length}, ${segment.parent}`);
       this.parent = segment.parent;
-      sb.appendBuffer(segment.data);
+      sb.appendBuffer(segment.data);//往source buffer 放数据，疑问：确定准备好了吗？
       this.appendError = 0;
       this.appended++;
-      this.appending = true;
+      this.appending = true;//标识正在追加
     } catch (err) {
       // in case any error occured while appending, put back segment in segments table
       logger.error(`error while trying to append buffer:${err.message}`);
@@ -677,9 +677,9 @@ class BufferController extends EventHandler {
 
     let currentTime: string = 'null';
     if (this.media) {
-      currentTime = this.media.currentTime.toFixed(3);
+      currentTime = this.media.currentTime.toFixed(3);//TIGER 
     }
-    logger.log(`flushBuffer,pos/start/end: ${currentTime}/${startOffset}/${endOffset}`);
+    logger.log(`flushBuffer,pos/start/end: ${currentTime}/${startOffset}/${endOffset}`);//当前时间
 
     // safeguard to avoid infinite looping : don't try to flush more than the nb of appended segments
     if (this.flushBufferCounter >= this.appended) {
@@ -691,7 +691,7 @@ class BufferController extends EventHandler {
     // we are going to flush buffer, mark source buffer as 'not ended'
     if (sb) {
       sb.ended = false;
-      if (!sb.updating) {
+      if (!sb.updating) {//如果已经不在updating了，说明已经消费完了，，就可以移除当前的segment
         if (this.removeBufferRange(sbType, sb, startOffset, endOffset)) {
           this.flushBufferCounter++;
           return false;
@@ -704,7 +704,7 @@ class BufferController extends EventHandler {
 
     logger.log('buffer flushed');
     // everything flushed !
-    return true;
+    return true;//正常情况，返回true
   }
 
   /**
