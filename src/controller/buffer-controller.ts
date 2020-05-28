@@ -149,12 +149,12 @@ class BufferController extends EventHandler {
     this.bufferCodecEventsExpected = this._bufferCodecEventsTotal = data.altAudio ? 2 : 1;
     logger.log(`${this.bufferCodecEventsExpected} bufferCodec event(s) expected`);
   }
-  //html里面开始绑定html上的video 标签如<video id="video"></video>
-  onMediaAttaching (data: { media: HTMLMediaElement }) {
+  //html里面开始绑定html上的video 标签如<video id="video"></video>//参看 https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video
+  onMediaAttaching(data: { media: HTMLMediaElement }) {//video 标签包含HTMLMediaElement.audioTracks HTMLMediaElement.videoTracks
     let media = this.media = data.media;
     if (media && MediaSource) {//是媒体标签
       // setup the media source//tiger MediaSource 这里开始，如果看API，每个MediaSource有track，sourceBuffers，sourceBuffers关闭用endofstream，
-      let ms = this.mediaSource = new MediaSource();
+      let ms = this.mediaSource = new MediaSource();//TIGER 参考:https://developer.mozilla.org/en-US/docs/Web/API/MediaSource
       // Media Source listeners
       ms.addEventListener('sourceopen', this._onMediaSourceOpen);//事件绑定Event handlers到私有成员函数_onMediaSourceOpen中
       ms.addEventListener('sourceended', this._onMediaSourceEnded);
@@ -415,7 +415,7 @@ class BufferController extends EventHandler {
   // if all source buffers are marked as ended, signal endOfStream() to MediaSource.
   checkEos () {
     const { sourceBuffer, mediaSource } = this;
-    if (!mediaSource || mediaSource.readyState !== 'open') {
+    if (!mediaSource || mediaSource.readyState !== 'open') {//没打开不需要
       this._needsEos = false;
       return;
     }
@@ -424,11 +424,11 @@ class BufferController extends EventHandler {
       const sb = sourceBuffer[type as SourceBufferName];
       if (!sb) continue;
 
-      if (!sb.ended) {
+      if (!sb.ended) {//还没结束
         return;
       }
 
-      if (sb.updating) {
+      if (sb.updating) {//还在更新
         this._needsEos = true;
         return;
       }
@@ -437,7 +437,7 @@ class BufferController extends EventHandler {
     logger.log('all media data are available, signal endOfStream() to MediaSource and stop loading fragment');
     // Notify the media element that it now has all of the media data
     try {
-      mediaSource.endOfStream();
+      mediaSource.endOfStream();//看来确实需要关闭了
     } catch (e) {
       logger.warn('exception while calling mediaSource.endOfStream()');
     }
@@ -445,19 +445,19 @@ class BufferController extends EventHandler {
   }
 
   onBufferFlushing (data: { startOffset: number, endOffset: number, type?: SourceBufferName }) {
-    if (data.type) {
+    if (data.type) {//如果确定了音频还是视频，
       this.flushRange.push({ start: data.startOffset, end: data.endOffset, type: data.type });
-    } else {
+    } else {//如果不知道类型，都放
       this.flushRange.push({ start: data.startOffset, end: data.endOffset, type: 'video' });
       this.flushRange.push({ start: data.startOffset, end: data.endOffset, type: 'audio' });
     }
 
     // attempt flush immediately
     this.flushBufferCounter = 0;
-    this.doFlush();
+    this.doFlush();//flush 试试看
   }
 
-  flushLiveBackBuffer () {
+  flushLiveBackBuffer () {//
     // clear back buffer for live only
     if (!this._live) {
       return;
